@@ -1,0 +1,31 @@
+# Ignorer les artefacts natifs générés localement
+ios/
+
+# Capacitor / plateformes
+**/build/
+**/.gradle/
+**/.idea/
+
+# Android: garder le code source, ignorer les outputs
+android/app/build/
+android/build/
+android/.gradle/
+
+# Node
+node_modules/
+
+# Sorties éventuelles
+web-build/
+export/
+
+# Binaires et archives
+*.apk
+*.aab
+*.aar
+
+# Keystores (ne jamais commit les vrais)
+*.jks
+*.keystore
+
+# Environnements
+.env
