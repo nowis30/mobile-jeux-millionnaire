@@ -1,0 +1,8 @@
+{
+  "plugins": [
+    {
+      "pkg": "com.heritier.millionnaire",
+      "classpath": "com.heritier.millionnaire.AdMobPlugin"
+    }
+  ]
+}

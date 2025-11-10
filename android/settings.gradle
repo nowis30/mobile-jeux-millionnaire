@@ -1,0 +1,4 @@
+include ':app'
+
+// Charge la config Capacitor Android depuis node_modules (chemin absolu pour éviter les soucis de répertoire)
+apply from: new File(rootDir, 'capacitor.settings.gradle')

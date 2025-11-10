@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Héritier Millionnaire</string>
+    <string name="title_activity_main">Héritier Millionnaire</string>
+    <string name="package_name">com.heritier.millionnaire</string>
+    <string name="custom_url_scheme">com.heritier.millionnaire</string>
+</resources>

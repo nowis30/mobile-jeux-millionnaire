@@ -1,0 +1,2 @@
+// Applique le build.gradle de Capacitor Android depuis node_modules (chemin robuste)
+apply from: new File(rootDir, '../node_modules/@capacitor/android/capacitor/build.gradle')
