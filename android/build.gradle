@@ -7,7 +7,9 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.2.1'
+        // Mise à jour vers une version du plugin Android compatible exécution sous JDK 21
+        // (AGP 8.5.0 requiert Gradle 8.7 et supporte l'exécution avec JDK 21 pour la chaîne de build)
+        classpath 'com.android.tools.build:gradle:8.5.0'
         classpath 'com.google.gms:google-services:4.4.0'
 
         // NOTE: Do not place your application dependencies here; they belong
@@ -23,6 +25,9 @@ allprojects {
         mavenCentral()
     }
 }
+
+// INFO: Pour compiler avec le runtime Java 21, installez JDK 21 et définissez JAVA_HOME.
+// Les sources Java du module Android restent (au 11/2025) limitées aux features jusqu'à Java 17.
 
 task clean(type: Delete) {
     delete rootProject.buildDir

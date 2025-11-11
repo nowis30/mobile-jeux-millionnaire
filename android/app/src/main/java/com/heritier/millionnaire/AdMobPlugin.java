@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.util.Log;
 
+import android.content.pm.ApplicationInfo;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
@@ -34,11 +35,29 @@ public class AdMobPlugin extends Plugin {
     private boolean npa = false; // Non-Personalized Ads flag
     private ConsentInformation consentInformation;
     
-    // ID de l'annonce interstitielle (PRODUCTION)
+    // IDs de production
     private static final String INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-7443046636998296/9246188831";
-    
-    // ID de l'annonce récompensée (PRODUCTION)
     private static final String REWARDED_AD_UNIT_ID = "ca-app-pub-7443046636998296/3604239096";
+
+    // IDs de test Google (ne diffusent que des pubs de test)
+    private static final String INTERSTITIAL_TEST_UNIT_ID = "ca-app-pub-3940256099942544/1033173712";
+    private static final String REWARDED_TEST_UNIT_ID = "ca-app-pub-3940256099942544/5224354917";
+
+    private boolean isDebuggable() {
+        Activity activity = getActivity();
+        if (activity == null) return false;
+        ApplicationInfo appInfo = activity.getApplicationInfo();
+        return (appInfo.flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0;
+    }
+
+    private String getInterstitialUnitId() {
+        // En debug, toujours utiliser les ad units de test pour éviter les blocages
+        return isDebuggable() ? INTERSTITIAL_TEST_UNIT_ID : INTERSTITIAL_AD_UNIT_ID;
+    }
+
+    private String getRewardedUnitId() {
+        return isDebuggable() ? REWARDED_TEST_UNIT_ID : REWARDED_AD_UNIT_ID;
+    }
     
     @PluginMethod
     public void initialize(PluginCall call) {
@@ -140,7 +159,7 @@ public class AdMobPlugin extends Plugin {
             
             InterstitialAd.load(
                 activity,
-                INTERSTITIAL_AD_UNIT_ID,
+                getInterstitialUnitId(),
                 adRequest,
                 new InterstitialAdLoadCallback() {
                     @Override
@@ -232,7 +251,7 @@ public class AdMobPlugin extends Plugin {
             
             RewardedAd.load(
                 activity,
-                REWARDED_AD_UNIT_ID,
+                getRewardedUnitId(),
                 adRequest,
                 new RewardedAdLoadCallback() {
                     @Override
