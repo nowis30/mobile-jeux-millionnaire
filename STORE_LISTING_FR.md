@@ -14,20 +14,26 @@ Courte description (≤ 80 car.)
 Description complète
 Héritier Millionnaire est un jeu de finances personnelles mêlant stratégie cashflow, immobilier, bourse, quiz et mini-jeux. Construis ton patrimoine, réponds à des questions d’argent et d’économie, et défie tes amis dans des parties rapides.
 
+Nouvelle mise à jour 1.0.1 : consentement RGPD accessible depuis le menu principal, correctif des annonces AdMob en cas de refus, et écran technique « Debug Ads » pour les testeurs internes.
+Nouvelle mise à jour 1.0.2 : navigation du tutoriel optimisée sur mobile avec gestes de balayage droite/gauche.
+
 Fonctionnalités
 - Tableau de bord: patrimoine, revenus passifs, dettes, opportunités
 - Immobilier & bourse: achète, vends, négocie
 - Quiz finance: 250+ questions thématiques
+- Centre de confidentialité: gère ton consentement et tes préférences pubs à tout moment
 - Défis quotidiens: bonus, missions, classement
 - Mode hors ligne partiel: stats visibles même sans réseau
+- Debug Ads: écran technique pour tester l'initialisation et la diffusion des pubs (réservé QA)
 
 Publicité
-- Formats interstitiel et récompensée via Google AdMob (contrôlés, fréquence modérée). Le consentement RGPD est géré via UMP.
+- Formats interstitiel et récompensée via Google AdMob (contrôlés, fréquence modérée). Consentement RGPD géré via UMP, avec option publicités non personnalisées.
 
 Pourquoi l’installer ?
 - Expérience mobile fluide (Capacitor)
 - Aucune inscription obligatoire
 - Progression sauvegardée côté serveur
+- Centre RGPD intégré + transparence sur les publicités affichées
 
 Contact et confidentialité
 - Politique: https://app.nowis.store/privacy.html
