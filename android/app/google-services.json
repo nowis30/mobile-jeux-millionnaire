@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "259358793377",
+    "project_id": "heritier-millionnaire",
+    "storage_bucket": "heritier-millionnaire.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:259358793377:android:03c6613e2757d793ac9ae0",
+        "android_client_info": {
+          "package_name": "com.heritier.millionnaire"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCKgp_NdlmCjcAV1JraTwJSgDZFEusm3W0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:259358793377:android:00fd037dd925bd35ac9ae0",
+        "android_client_info": {
+          "package_name": "store.nowis.millionnaire"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCKgp_NdlmCjcAV1JraTwJSgDZFEusm3W0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

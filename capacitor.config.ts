@@ -11,6 +11,12 @@ const config: CapacitorConfig = {
   },
   android: {
     allowMixedContent: true
+  },
+  plugins: {
+    StatusBar: {
+      style: 'dark',
+      backgroundColor: '#0f172a'
+    }
   }
 };
 

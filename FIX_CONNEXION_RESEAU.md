@@ -69,9 +69,51 @@ Si la connexion ne fonctionne toujours pas :
 3. **Vérifier que le serveur est en ligne :**
    - Ouvrir `https://server-jeux-millionnaire.onrender.com` dans un navigateur
 
+## 🔴 NOUVELLE CORRECTION (13 nov 2025 - 8h45)
+
+**Problème :** Ça marchait sur émulateur mais pas sur téléphone physique
+
+**Cause :** Le code détectait `capacitor://localhost` comme "localhost" et essayait de se connecter à `http://127.0.0.1:8010/proxy` (qui n'existe pas sur le téléphone)
+
+**Solution :** Détection du protocole Capacitor (`capacitor:`, `ionic:`, `file:`) pour forcer l'utilisation du serveur Render en production.
+
+### Code modifié dans `main.js` :
+
+```javascript
+// Détecter Capacitor/Cordova (app mobile native)
+const isCapacitor = protocol === 'capacitor:' || protocol === 'ionic:' || protocol === 'file:';
+
+// Vrai localhost = navigateur dev sur machine locale (PAS Capacitor)
+const isRealLocalHost = !isCapacitor && (/^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(host) || host.startsWith('192.168.'));
+```
+
+### 🧪 Test sur téléphone physique :
+
+1. **Rebuild l'APK :**
+   ```bash
+   cd android
+   .\gradlew assembleRelease
+   ```
+
+2. **Installer sur téléphone :**
+   - Connecter le téléphone en USB avec débogage activé
+   - OU copier l'APK : `android/app/build/outputs/apk/release/app-release.apk`
+
+3. **Vérifier dans Chrome DevTools :**
+   - Ouvrir Chrome sur PC : `chrome://inspect`
+   - Sélectionner votre appareil
+   - Dans Console, vérifier : `[drag] App mobile: API directe https://server-jeux-millionnaire.onrender.com`
+
+4. **Tester la connexion :**
+   - Ouvrir l'app
+   - Aller au menu drag
+   - Essayer de se connecter / login
+   - Vérifier que les données se chargent
+
 ## 📝 Commits créés
 
 - `42e042b` - fix: autoriser connexions réseau vers serveur Render dans Android
 - `435dd6b` - chore: mise à jour dist avec nouvel export Next.js
+- `e144c74` - fix: détection Capacitor pour connexion API sur téléphone physique
 
 Tous les changements ont été poussés vers GitHub.
