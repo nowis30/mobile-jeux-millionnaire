@@ -187,20 +187,68 @@ try {
 
 let CSRF_TOKEN = null;
 function getStoredSession() {
-    try { const raw = localStorage.getItem('hm-session'); return raw ? JSON.parse(raw) : null; } catch { return null; }
+    try {
+        // Priorité 1: Récupérer depuis le bridge Android si disponible
+        if (typeof window !== 'undefined' && window.AndroidDrag && typeof window.AndroidDrag.getSessionData === 'function') {
+            try {
+                const androidSession = window.AndroidDrag.getSessionData();
+                if (androidSession) {
+                    const parsed = JSON.parse(androidSession);
+                    if (parsed && parsed.gameId && parsed.playerId) {
+                        // Sauvegarder dans localStorage pour réutilisation
+                        localStorage.setItem('hm-session', androidSession);
+                        console.log('[drag] Session récupérée depuis Android bridge:', parsed.gameId);
+                        return parsed;
+                    }
+                }
+            } catch (bridgeErr) {
+                console.warn('[drag] Échec récupération session Android:', bridgeErr);
+            }
+        }
+        
+        // Priorité 2: localStorage
+        const raw = localStorage.getItem('hm-session'); 
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            console.log('[drag] Session trouvée dans localStorage');
+            return parsed;
+        }
+        return null;
+    } catch (err) {
+        console.error('[drag] Erreur getStoredSession:', err);
+        return null; 
+    }
 }
 function setStoredSession(s) { try { localStorage.setItem('hm-session', JSON.stringify(s)); } catch {} }
 function clearStoredSession() { try { localStorage.removeItem('hm-session'); } catch {} }
 const TOKEN_SOURCE_KEY = 'hm-token-source';
 function getAuthToken() {
     try {
-        // PrioritÃ© : token spÃ©cifique drag
+        // Priorité 1: Récupérer depuis le bridge Android si disponible
+        if (typeof window !== 'undefined' && window.AndroidDrag && typeof window.AndroidDrag.getAuthToken === 'function') {
+            try {
+                const androidToken = window.AndroidDrag.getAuthToken();
+                if (androidToken) {
+                    console.log('[drag] Token récupéré depuis Android bridge');
+                    // Sauvegarder dans localStorage pour réutilisation
+                    localStorage.setItem('hm-token', androidToken);
+                    localStorage.setItem('HM_TOKEN', androidToken);
+                    return androidToken;
+                }
+            } catch (bridgeErr) {
+                console.warn('[drag] Échec récupération token Android:', bridgeErr);
+            }
+        }
+        
+        // Priorité 2: token spécifique drag
         const dragToken = localStorage.getItem('hm-token');
         if (dragToken) return dragToken;
-        // Fallback : token global utilisÃ© par le client Next
+        
+        // Priorité 3: token global utilisé par le client Next
         const globalToken = localStorage.getItem('HM_TOKEN');
         return globalToken || null;
-    } catch {
+    } catch (err) {
+        console.error('[drag] Erreur getAuthToken:', err);
         return null;
     }
 }
@@ -2154,19 +2202,6 @@ async function finishRace(playerWins) {
     } else {
         setBanner('DÃ©faite... retente ta chance.', 4, '#ff6b6b');
         game.result = 'loss';
-
-        // === INTÉGRATION ADMOB ANDROID ===
-        try {
-            if (typeof window !== 'undefined' && window.AndroidDrag &&
-                typeof window.AndroidDrag.onRaceFinished === 'function') {
-                const elapsedMs = Math.max(1, Math.round(((player.finishTime ?? game.timer) || 0) * 1000));
-                window.AndroidDrag.onRaceFinished(finalWin, elapsedMs);
-                console.log('[Drag] Notification Android: course terminée');
-            }
-        } catch (err) {
-            console.log('[Drag] Mode web détecté');
-        }
-        // === FIN INTÉGRATION ADMOB ===
     }
 
     // Envoi des rÃ©sultats au serveur Millionnaire
