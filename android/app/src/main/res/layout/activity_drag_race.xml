@@ -1,0 +1,318 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#1a1a1a"
+    tools:context=".DragRaceActivity">
+
+    <!-- HUD en haut -->
+    <LinearLayout
+        android:id="@+id/llHud"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="12dp"
+        android:background="#2a2a2a"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/tvRaceNumber"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Course 1"
+                android:textColor="#ffffff"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvMoney"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Argent: 0 $"
+                android:textColor="#4CAF50"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginStart="16dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp">
+
+            <TextView
+                android:id="@+id/tvTime"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Temps: 0.00 s"
+                android:textColor="#ffffff"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/tvLastShift"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Dernier shift: —"
+                android:textColor="#FFC107"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4dp">
+
+            <TextView
+                android:id="@+id/tvMaxSpeed"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Vitesse max: 0 km/h"
+                android:textColor="#03A9F4"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/tvMaxRpm"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="RPM max: 0"
+                android:textColor="#FF5722"
+                android:textSize="14sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Zone de la piste avec les deux voitures -->
+    <FrameLayout
+        android:id="@+id/flRaceTrack"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="#3a3a3a"
+        app:layout_constraintTop_toBottomOf="@id/llHud"
+        app:layout_constraintBottom_toTopOf="@id/llTachometer"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- Ligne de départ (visuel) -->
+        <View
+            android:layout_width="4dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="32dp"
+            android:background="#ffffff" />
+
+        <!-- Ligne d'arrivée -->
+        <View
+            android:layout_width="4dp"
+            android:layout_height="match_parent"
+            android:layout_gravity="end"
+            android:layout_marginEnd="32dp"
+            android:background="#00ff00" />
+
+        <!-- Ligne centrale de séparation -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="2dp"
+            android:layout_gravity="center_vertical"
+            android:background="#555555" />
+
+        <!-- Voiture adverse (en haut) -->
+        <ImageView
+            android:id="@+id/ivOpponentCar"
+            android:layout_width="64dp"
+            android:layout_height="48dp"
+            android:layout_gravity="start|top"
+            android:layout_marginStart="32dp"
+            android:layout_marginTop="40dp"
+            android:src="@drawable/ic_car_opponent"
+            android:contentDescription="Voiture adverse"
+            tools:ignore="HardcodedText" />
+
+        <!-- Voiture joueur (en bas) -->
+        <ImageView
+            android:id="@+id/ivPlayerCar"
+            android:layout_width="64dp"
+            android:layout_height="48dp"
+            android:layout_gravity="start|bottom"
+            android:layout_marginStart="32dp"
+            android:layout_marginBottom="40dp"
+            android:src="@drawable/ic_car_player"
+            android:contentDescription="Voiture joueur"
+            tools:ignore="HardcodedText" />
+    </FrameLayout>
+
+    <!-- Cadran RPM (compte-tours) -->
+    <LinearLayout
+        android:id="@+id/llTachometer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:background="#2a2a2a"
+        app:layout_constraintBottom_toTopOf="@id/llControls"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="RPM"
+            android:textColor="#ffffff"
+            android:textSize="12sp"
+            android:layout_gravity="center_horizontal" />
+
+        <ProgressBar
+            android:id="@+id/pbRpm"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="24dp"
+            android:max="10000"
+            android:progress="0"
+            android:progressTint="#FF5722"
+            android:progressBackgroundTint="#555555"
+            android:layout_marginTop="8dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4dp">
+
+            <TextView
+                android:id="@+id/tvCurrentRpm"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="0 RPM"
+                android:textColor="#ffffff"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvCurrentGear"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Vitesse: N"
+                android:textColor="#03A9F4"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginStart="16dp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvShiftZone"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Zone verte: 5000-6500 RPM"
+            android:textColor="#4CAF50"
+            android:textSize="12sp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="4dp" />
+    </LinearLayout>
+
+    <!-- Zone de contrôles -->
+    <LinearLayout
+        android:id="@+id/llControls"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:background="#1a1a1a"
+        app:layout_constraintBottom_toTopOf="@id/flAdContainer"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- Zone gauche: Accélérateur + Nitro -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <Button
+                android:id="@+id/btnNitro"
+                android:layout_width="120dp"
+                android:layout_height="60dp"
+                android:text="NOS (0)"
+                android:textSize="14sp"
+                android:backgroundTint="#9C27B0"
+                android:textColor="#ffffff" />
+
+            <Button
+                android:id="@+id/btnAccelerate"
+                android:layout_width="140dp"
+                android:layout_height="140dp"
+                android:text="ACCÉLÉRER"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:backgroundTint="#4CAF50"
+                android:textColor="#ffffff"
+                android:layout_marginTop="12dp" />
+        </LinearLayout>
+
+        <!-- Zone droite: Shift -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <Button
+                android:id="@+id/btnShift"
+                android:layout_width="140dp"
+                android:layout_height="140dp"
+                android:text="SHIFT"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:backgroundTint="#FF5722"
+                android:textColor="#ffffff" />
+
+            <Button
+                android:id="@+id/btnStartRace"
+                android:layout_width="140dp"
+                android:layout_height="60dp"
+                android:text="DÉMARRER"
+                android:textSize="14sp"
+                android:backgroundTint="#03A9F4"
+                android:textColor="#ffffff"
+                android:layout_marginTop="12dp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Placeholder bannière AdMob -->
+    <FrameLayout
+        android:id="@+id/flAdContainer"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:background="#ffcc00"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- TODO: Intégrer AdMob banner ici -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="[Bannière AdMob ici]"
+            android:textColor="#000000"
+            android:layout_gravity="center" />
+    </FrameLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
