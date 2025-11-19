@@ -131,6 +131,12 @@ public class MainActivity extends BridgeActivity {
                         // Ceci met à jour périodiquement lastKnownPath pour accélérer la résolution de la page actuelle lors des swipes
                         final String trackPathJs = "try{window.__hmTrackPathInterval&&clearInterval(window.__hmTrackPathInterval);window.__hmTrackPathInterval=setInterval(function(){try{var p=location.pathname||'/';if(window.AndroidInterface&&window.AndroidInterface.updatePath){window.AndroidInterface.updatePath(p);}else{if(!window.__lastPathSent||window.__lastPathSent!==p){window.__lastPathSent=p;}}}catch(e){}},800);}catch(e){}";
                         getBridge().getWebView().evaluateJavascript(trackPathJs, null);
+
+                        // Optionnel: masquer un éventuel menu flottant web en bas à droite
+                        // Décommentez le bloc ci-dessous si le menu est encore présent côté web.
+                        // String hideCss = "try{var css='*{touch-action:pan-y} .fixed.bottom-4.right-4, .fixed.bottom-3.right-3, #nav-fab{display:none!important;}';"
+                        //     + "var s=document.createElement('style');s.innerHTML=css;document.head.appendChild(s);}catch(e){}";
+                        // getBridge().getWebView().evaluateJavascript(hideCss, null);
                     }
                 }, 400);
             }
