@@ -7,6 +7,8 @@ import android.os.Looper;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.view.GestureDetector;
+import android.view.MotionEvent;
 import android.webkit.CookieManager;
 import android.text.TextUtils;
 import androidx.core.view.WindowCompat;
@@ -15,7 +17,23 @@ import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.Bridge;
 
+import java.util.concurrent.atomic.AtomicReference;
+
 public class MainActivity extends BridgeActivity {
+
+    // Base URL du client Web (Next.js) utilisé pour les pages Accueil/Immobilier/Quiz/Pari
+    private static final String CLIENT_BASE = "https://client-jeux-millionnaire.vercel.app";
+
+    // Séquence ordonnée des volets pour la navigation par swipe
+    // Index 0 → Accueil (/)
+    // Index 1 → Immobilier (/immobilier)
+    // Index 2 → Quiz (/quiz)
+    // Index 3 → Pari (/pari)
+    // Pour ajouter un nouveau volet plus tard: ajouter le chemin ici et ajuster la logique next/prev si besoin.
+    private static final String[] PAGES = new String[] { "/", "/immobilier", "/quiz", "/pari" };
+
+    private GestureDetector gestureDetector;
+    private final AtomicReference<String> lastKnownPath = new AtomicReference<>("/");
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -109,12 +127,19 @@ public class MainActivity extends BridgeActivity {
                         if (jsSession != null) {
                             getBridge().getWebView().evaluateJavascript(jsSession, null);
                         }
+                        // Injecte un hook léger pour suivre le pathname courant côté JS
+                        // Ceci met à jour périodiquement lastKnownPath pour accélérer la résolution de la page actuelle lors des swipes
+                        final String trackPathJs = "try{window.__hmTrackPathInterval&&clearInterval(window.__hmTrackPathInterval);window.__hmTrackPathInterval=setInterval(function(){try{var p=location.pathname||'/';if(window.AndroidInterface&&window.AndroidInterface.updatePath){window.AndroidInterface.updatePath(p);}else{if(!window.__lastPathSent||window.__lastPathSent!==p){window.__lastPathSent=p;}}}catch(e){}},800);}catch(e){}";
+                        getBridge().getWebView().evaluateJavascript(trackPathJs, null);
                     }
                 }, 400);
             }
         } catch (Throwable t) {
             // Pas bloquant, on laisse l'app continuer
         }
+
+        // Active la navigation par swipe (gauche/droite) entre les volets
+        setupSwipeNavigation();
     }
     
     @Override
@@ -124,6 +149,108 @@ public class MainActivity extends BridgeActivity {
         if (getSupportActionBar() != null) {
             getSupportActionBar().hide();
         }
+        // Si on a été réveillé avec une intention ciblant un onglet, applique la navigation
+        String path = null;
+        try { path = getIntent() != null ? getIntent().getStringExtra("targetPath") : null; } catch (Throwable ignored) {}
+        if (path != null && path.length() > 0) {
+            // Nettoie l’extra pour éviter de re-naviguer en boucle
+            getIntent().removeExtra("targetPath");
+            navigateToPath(path);
+        }
+    }
+
+    @Override
+    protected void onNewIntent(android.content.Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        String path = null;
+        try { path = intent != null ? intent.getStringExtra("targetPath") : null; } catch (Throwable ignored) {}
+        if (path != null && path.length() > 0) {
+            navigateToPath(path);
+        }
+    }
+
+    // --- Navigation par swipe: gestionnaire de gestes + helpers ---
+    private void setupSwipeNavigation() {
+        final Bridge bridge = getBridge();
+        if (bridge == null || bridge.getWebView() == null) return;
+
+        // Détecteur de gestes pour identifier les flings horizontaux
+        gestureDetector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
+            private static final int SWIPE_THRESHOLD = 100;      // distance minimale en px
+            private static final int SWIPE_VELOCITY_THRESHOLD = 100; // vitesse minimale
+
+            @Override
+            public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+                if (e1 == null || e2 == null) return false;
+                float diffX = e2.getX() - e1.getX();
+                float diffY = e2.getY() - e1.getY();
+                if (Math.abs(diffX) > Math.abs(diffY)
+                        && Math.abs(diffX) > SWIPE_THRESHOLD
+                        && Math.abs(velocityX) > SWIPE_VELOCITY_THRESHOLD) {
+                    if (diffX < 0) {
+                        // Swipe gauche → page suivante
+                        navigateRelative(+1);
+                    } else {
+                        // Swipe droite → page précédente
+                        navigateRelative(-1);
+                    }
+                    return true;
+                }
+                return false;
+            }
+        });
+
+        // Attache l'écouteur de touch au WebView de Capacitor
+        bridge.getWebView().setOnTouchListener((v, event) -> gestureDetector != null && gestureDetector.onTouchEvent(event));
+    }
+
+    // Calcule l'index courant à partir du pathname et navigue d'un offset relatif (-1/+1)
+    private void navigateRelative(int delta) {
+        final Bridge bridge = getBridge();
+        if (bridge == null || bridge.getWebView() == null) return;
+
+        // Récupère le pathname courant côté JS pour déterminer la page actuelle
+        bridge.getWebView().evaluateJavascript("(function(){return location.pathname||'/';})()", value -> {
+            String path = cleanJsString(value);
+            if (path == null || path.isEmpty()) path = "/";
+            lastKnownPath.set(path);
+            int idx = indexOfPath(path);
+            int next = ((idx + delta) % PAGES.length + PAGES.length) % PAGES.length; // boucle circulaire
+            navigateToPath(PAGES[next]);
+        });
+    }
+
+    // Navigue vers un chemin précis (ex: "/immobilier") en conservant la base client
+    private void navigateToPath(String path) {
+        final Bridge bridge = getBridge();
+        if (bridge == null || bridge.getWebView() == null) return;
+        if (path == null || path.length() == 0) path = "/";
+        final String url = (path.startsWith("http")) ? path : (CLIENT_BASE + path);
+        bridge.getWebView().evaluateJavascript("window.location.assign('" + escapeJs(url) + "')", null);
+    }
+
+    // Retourne l'index de PAGES correspondant au pathname courant
+    private int indexOfPath(String path) {
+        if (path == null) return 0;
+        for (int i = 0; i < PAGES.length; i++) {
+            if ("/".equals(PAGES[i])) {
+                if ("/".equals(path)) return i;
+            } else if (path.startsWith(PAGES[i])) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    // Nettoie une chaîne renvoyée par evaluateJavascript (souvent entourée de quotes)
+    private static String cleanJsString(String s) {
+        if (s == null) return null;
+        // Les résultats JS sont souvent comme "\"/immobilier\"" ou ""/immobilier"" selon versions
+        if (s.startsWith("\"") && s.endsWith("\"")) {
+            s = s.substring(1, s.length() - 1);
+        }
+        return s.replace("\\n", "").replace("\\r", "");
     }
     // Helpers simples pour échapper les chaînes insérées dans du JS
     private static String escapeJs(String s) {
