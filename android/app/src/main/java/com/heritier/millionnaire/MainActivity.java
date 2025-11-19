@@ -1,28 +1,21 @@
 package com.heritier.millionnaire;
 
-import android.graphics.Bitmap;
 import android.os.Build;
 import android.os.Bundle;
-import android.view.LayoutInflater;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
-import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
-import android.webkit.WebResourceError;
-import android.webkit.WebResourceRequest;
-import android.webkit.WebView;
+import android.webkit.CookieManager;
+import android.text.TextUtils;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.BridgeActivity;
-import com.getcapacitor.BridgeWebViewClient;
-import java.util.ArrayList;
-import android.widget.TextView;
+import com.getcapacitor.Bridge;
 
 public class MainActivity extends BridgeActivity {
-
-    private View loadingOverlay;
-    private TextView loadingSubtitle;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -71,8 +64,56 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(AdMobPlugin.class);
         registerPlugin(DragLauncherPlugin.class);
         super.onCreate(savedInstanceState);
-        setupLoadingOverlay();
-        attachLoadingCallbacks();
+        // Overlay de chargement supprimé - l'app démarre directement
+
+        // ==============================
+        // Injection d'authentification
+        // ==============================
+        // Objectif: si un token a déjà été stocké côté natif (SharedPreferences
+        // 'CapacitorStorage'), on le propage dans:
+        // - les cookies pour l'API Render (si celle-ci utilise les cookies)
+        // - le localStorage (hm-token/HM_TOKEN) pour les appels fetch côté web
+        try {
+            android.content.SharedPreferences prefs = getSharedPreferences("CapacitorStorage", MODE_PRIVATE);
+            String token = prefs.getString("HM_TOKEN", null);
+            if (token == null) token = prefs.getString("hm-token", null);
+            if (token == null) token = prefs.getString("auth_token", null);
+
+            // Propager en cookie (third-party cookies requis pour fetch vers domaine externe)
+            if (!TextUtils.isEmpty(token)) {
+                final String apiBase = "https://server-jeux-millionnaire.onrender.com";
+                CookieManager cookieManager = CookieManager.getInstance();
+                cookieManager.setAcceptCookie(true);
+                // Autoriser les cookies tiers pour la WebView principale de Capacitor
+                Bridge bridge = getBridge();
+                if (bridge != null && bridge.getWebView() != null) {
+                    CookieManager.getInstance().setAcceptThirdPartyCookies(bridge.getWebView(), true);
+                }
+                // Déposer plusieurs clés courantes par sécurité (le serveur utilisera celle attendue)
+                cookieManager.setCookie(apiBase, "hm-token=" + token + "; Path=/; SameSite=None; Secure");
+                cookieManager.setCookie(apiBase, "token=" + token + "; Path=/; SameSite=None; Secure");
+                cookieManager.flush();
+
+                // Propager dans localStorage côté WebView (utilisé par le client Next.js)
+                final String js = "try{localStorage.setItem('hm-token', '" + escapeJs(token) + "');localStorage.setItem('HM_TOKEN','" + escapeJs(token) + "');}catch(e){}";
+                // Optionnel: session
+                final String sessionJson = prefs.getString("hm-session", null);
+                final String jsSession = sessionJson != null
+                    ? ("try{localStorage.setItem('hm-session', '" + escapeJs(sessionJson) + "');}catch(e){}"): null;
+
+                Handler h = new Handler(Looper.getMainLooper());
+                h.postDelayed(() -> {
+                    if (getBridge() != null && getBridge().getWebView() != null) {
+                        getBridge().getWebView().evaluateJavascript(js, null);
+                        if (jsSession != null) {
+                            getBridge().getWebView().evaluateJavascript(jsSession, null);
+                        }
+                    }
+                }, 400);
+            }
+        } catch (Throwable t) {
+            // Pas bloquant, on laisse l'app continuer
+        }
     }
     
     @Override
@@ -83,57 +124,14 @@ public class MainActivity extends BridgeActivity {
             getSupportActionBar().hide();
         }
     }
-
-    private void setupLoadingOverlay() {
-        LayoutInflater inflater = LayoutInflater.from(this);
-        loadingOverlay = inflater.inflate(R.layout.loading_overlay, null);
-        loadingSubtitle = loadingOverlay.findViewById(R.id.loadingSubtitle);
-        addContentView(loadingOverlay, new ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-        ));
-        loadingOverlay.setVisibility(View.VISIBLE);
-    }
-
-    private void attachLoadingCallbacks() {
-        WebView webView = getBridge().getWebView();
-        webView.setWebViewClient(new BridgeWebViewClient(getBridge()) {
-            @Override
-            public void onPageStarted(WebView view, String url, Bitmap favicon) {
-                super.onPageStarted(view, url, favicon);
-                showLoading("Connexion au serveur Render…");
-            }
-
-            @Override
-            public void onPageFinished(WebView view, String url) {
-                super.onPageFinished(view, url);
-                hideLoading();
-            }
-
-            @Override
-            public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
-                super.onReceivedError(view, request, error);
-                showLoading("Toujours en attente du serveur Render…");
-            }
-        });
-    }
-
-    private void showLoading(String message) {
-        runOnUiThread(() -> {
-            if (loadingOverlay != null) {
-                loadingOverlay.setVisibility(View.VISIBLE);
-                if (loadingSubtitle != null) {
-                    loadingSubtitle.setText(message);
-                }
-            }
-        });
-    }
-
-    private void hideLoading() {
-        runOnUiThread(() -> {
-            if (loadingOverlay != null) {
-                loadingOverlay.setVisibility(View.GONE);
-            }
-        });
+    // Helpers simples pour échapper les chaînes insérées dans du JS
+    private static String escapeJs(String s) {
+        if (s == null) return "";
+        return s
+            .replace("\\", "\\\\")
+            .replace("\"", "\\\"")
+            .replace("'", "\\'")
+            .replace("\n", "\\n")
+            .replace("\r", "\\r");
     }
 }

@@ -1,8 +1,11 @@
 package com.heritier.millionnaire;
 
 import android.annotation.SuppressLint;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.view.Window;
@@ -78,6 +81,9 @@ public class DragActivity extends AppCompatActivity {
         MobileAds.initialize(this, initializationStatus -> {
             Log.d(TAG, "AdMob initialisé: " + initializationStatus.toString());
         });
+
+        // Synchroniser immédiatement les données auth fournies par l'activité parent
+        syncAuthFromIntent(getIntent());
         
         // ==========================================
         // MODE FULLSCREEN IMMERSIF POUR LE JEU
@@ -179,6 +185,33 @@ public class DragActivity extends AppCompatActivity {
         loadInterstitialAd();
     }
 
+    private void syncAuthFromIntent(Intent intent) {
+        if (intent == null) return;
+        String token = intent.getStringExtra("authToken");
+        String sessionJson = intent.getStringExtra("sessionJson");
+        if (TextUtils.isEmpty(token) && TextUtils.isEmpty(sessionJson)) {
+            Log.d(TAG, "Pas de données auth à synchroniser depuis l'intent");
+            return;
+        }
+        try {
+            SharedPreferences prefs = getSharedPreferences("CapacitorStorage", MODE_PRIVATE);
+            SharedPreferences.Editor editor = prefs.edit();
+            if (!TextUtils.isEmpty(token)) {
+                editor.putString("HM_TOKEN", token);
+                editor.putString("hm-token", token);
+                editor.putString("auth_token", token);
+                Log.d(TAG, "Token synchronisé depuis intent");
+            }
+            if (!TextUtils.isEmpty(sessionJson)) {
+                editor.putString("hm-session", sessionJson);
+                Log.d(TAG, "Session synchronisée depuis intent");
+            }
+            editor.apply();
+        } catch (Exception e) {
+            Log.e(TAG, "Erreur sync auth intent: " + e.getMessage());
+        }
+    }
+
     /**
      * Interface JavaScript exposée au jeu de drag
      * Permet au JavaScript d'appeler des méthodes Android
@@ -193,8 +226,8 @@ public class DragActivity extends AppCompatActivity {
         public void onRaceFinished(boolean playerWon, int elapsedMs) {
             Log.d(TAG, "Course terminée: " + (playerWon ? "VICTOIRE" : "DÉFAITE") + " en " + elapsedMs + "ms");
             
-            // Afficher un interstitiel (si cooldown respecté)
-            runOnUiThread(() -> showInterstitialAd());
+            // Pub interstitielle désactivée après course pour meilleure expérience utilisateur
+            // runOnUiThread(() -> showInterstitialAd());
         }
         
         /**

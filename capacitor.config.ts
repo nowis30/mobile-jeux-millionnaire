@@ -7,12 +7,11 @@ const config: CapacitorConfig = {
   appName: 'Héritier Millionnaire',
   webDir: 'dist',
   server: mobileWebUrl ? {
-    // URL du client Next.js distant si MOBILE_WEB_URL est défini
     url: mobileWebUrl,
     cleartext: true,
     androidScheme: 'https'
   } : {
-    // Utilise le build local (dist) par défaut
+    // Charger depuis dist par défaut (pas de serveur externe)
     cleartext: true,
     androidScheme: 'https'
   },

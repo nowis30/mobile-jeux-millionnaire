@@ -224,31 +224,13 @@ function clearStoredSession() { try { localStorage.removeItem('hm-session'); } c
 const TOKEN_SOURCE_KEY = 'hm-token-source';
 function getAuthToken() {
     try {
-        // Priorité 1: Récupérer depuis le bridge Android si disponible
-        if (typeof window !== 'undefined' && window.AndroidDrag && typeof window.AndroidDrag.getAuthToken === 'function') {
-            try {
-                const androidToken = window.AndroidDrag.getAuthToken();
-                if (androidToken) {
-                    console.log('[drag] Token récupéré depuis Android bridge');
-                    // Sauvegarder dans localStorage pour réutilisation
-                    localStorage.setItem('hm-token', androidToken);
-                    localStorage.setItem('HM_TOKEN', androidToken);
-                    return androidToken;
-                }
-            } catch (bridgeErr) {
-                console.warn('[drag] Échec récupération token Android:', bridgeErr);
-            }
-        }
-        
-        // Priorité 2: token spécifique drag
+        // PrioritÃ© : token spÃ©cifique drag
         const dragToken = localStorage.getItem('hm-token');
         if (dragToken) return dragToken;
-        
-        // Priorité 3: token global utilisé par le client Next
+        // Fallback : token global utilisÃ© par le client Next
         const globalToken = localStorage.getItem('HM_TOKEN');
         return globalToken || null;
-    } catch (err) {
-        console.error('[drag] Erreur getAuthToken:', err);
+    } catch {
         return null;
     }
 }
@@ -2202,6 +2184,19 @@ async function finishRace(playerWins) {
     } else {
         setBanner('DÃ©faite... retente ta chance.', 4, '#ff6b6b');
         game.result = 'loss';
+
+        // === INTÉGRATION ADMOB ANDROID ===
+        try {
+            if (typeof window !== 'undefined' && window.AndroidDrag &&
+                typeof window.AndroidDrag.onRaceFinished === 'function') {
+                const elapsedMs = Math.max(1, Math.round(((player.finishTime ?? game.timer) || 0) * 1000));
+                window.AndroidDrag.onRaceFinished(finalWin, elapsedMs);
+                console.log('[Drag] Notification Android: course terminée');
+            }
+        } catch (err) {
+            console.log('[Drag] Mode web détecté');
+        }
+        // === FIN INTÉGRATION ADMOB ===
     }
 
     // Envoi des rÃ©sultats au serveur Millionnaire
@@ -2610,13 +2605,39 @@ window.addEventListener('message', (event) => {
     }
 });
 
-// Fallback : si après 500ms aucun token parent n'est reçu, créer un invité
+// Fallback : si après 500ms aucun token parent n'est reçu, essayer Android puis créer un invité
 setTimeout(() => {
     if (!parentTokenReceived) {
-        console.warn('[drag]  Aucun token parent reçu après 500ms, création invité...');
-        ensureGuestToken().catch(() => null).then(() => {
-            refreshAuthUi().then(() => loadDragSessionAndSyncHUD().catch(() => {}));
-        });
+        console.warn('[drag]  Aucun token parent reçu après 500ms, tentative Android...');
+        
+        // IMPORTANT: Vérifier Android AVANT de créer un invité
+        (async function initDragAuth() {
+            try {
+                console.log('[drag] Initialisation authentification...');
+                
+                // Étape 1: Forcer la récupération du token depuis Android
+                const token = getAuthToken();
+                console.log('[drag] Token initial:', token ? 'PRÉSENT' : 'ABSENT');
+                
+                // Étape 2: Forcer la récupération de la session depuis Android
+                const session = getStoredSession();
+                console.log('[drag] Session initiale:', session ? `gameId=${session.gameId}` : 'ABSENTE');
+                
+                // Étape 3: Vérifier l'authentification
+                await refreshAuthUi();
+                
+                // Étape 4: Charger la session drag et synchroniser le HUD
+                await loadDragSessionAndSyncHUD();
+                
+                console.log('[drag] Initialisation authentification terminée');
+            } catch (err) {
+                console.error('[drag] Erreur initialisation:', err);
+                // En cas d'échec, créer un invité
+                ensureGuestToken().catch(() => null).then(() => {
+                    refreshAuthUi().then(() => loadDragSessionAndSyncHUD().catch(() => {}));
+                });
+            }
+        })();
     }
 }, 500);
 
