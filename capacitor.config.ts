@@ -9,11 +9,18 @@ const config: CapacitorConfig = {
   server: mobileWebUrl ? {
     url: mobileWebUrl,
     cleartext: true,
-    androidScheme: 'https'
+    androidScheme: 'https',
+    allowNavigation: [
+      'client-jeux-millionnaire.vercel.app'
+    ]
   } : {
     // Charger depuis dist par défaut (pas de serveur externe)
     cleartext: true,
-    androidScheme: 'https'
+    androidScheme: 'https',
+    allowNavigation: [
+      // Autoriser la navigation vers le site client pour rester dans la WebView
+      'client-jeux-millionnaire.vercel.app'
+    ]
   },
   android: {
     allowMixedContent: true

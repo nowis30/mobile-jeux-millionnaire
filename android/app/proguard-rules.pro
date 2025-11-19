@@ -45,6 +45,10 @@
 -keepclassmembers class * extends android.app.Activity { *; }
 -keep class **.App { *; }
 
+# --- Custom native Immobilier components (avoid stripping in release) ---
+-keep class com.heritier.millionnaire.ImmobilierActivity { *; }
+-keep class com.heritier.millionnaire.ImmobilierLauncherPlugin { *; }
+
 # --- Resources: keep asset paths used by Capacitor ---
 -keep class **.R$* { *; }
 

@@ -76,6 +76,13 @@
             android:exported="false"
             android:label="Garage"
             android:theme="@style/AppTheme.NoActionBar" />
+
+        <activity
+            android:name="com.heritier.millionnaire.ImmobilierActivity"
+            android:exported="false"
+            android:label="Immobilier"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|uiMode"
+            android:theme="@style/AppTheme.NoActionBar" />
     </application>
 
     <!-- Permissions -->

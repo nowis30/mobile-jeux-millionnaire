@@ -63,6 +63,7 @@ public class MainActivity extends BridgeActivity {
         // Enregistrer les plugins avant super.onCreate
         registerPlugin(AdMobPlugin.class);
         registerPlugin(DragLauncherPlugin.class);
+        registerPlugin(ImmobilierLauncherPlugin.class);
         super.onCreate(savedInstanceState);
         // Overlay de chargement supprimé - l'app démarre directement
 

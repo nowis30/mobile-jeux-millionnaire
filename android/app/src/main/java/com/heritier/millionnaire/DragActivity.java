@@ -11,11 +11,17 @@ import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
+import android.webkit.ConsoleMessage;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.widget.Button;
+import android.view.Gravity;
+import android.webkit.CookieManager;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.view.WindowCompat;
@@ -71,6 +77,9 @@ public class DragActivity extends AppCompatActivity {
     private long lastInterstitialTime = 0;
     private boolean isLoadingInterstitial = false;
     private AdView bannerAdView;
+    private View authOverlay;
+
+    private static final String API_BASE = "https://server-jeux-millionnaire.onrender.com";
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -175,12 +184,59 @@ public class DragActivity extends AppCompatActivity {
         // Interface JavaScript pour communication WebView ↔ Android
         webView.addJavascriptInterface(new DragBridge(), "AndroidDrag");
 
-        webView.setWebViewClient(new WebViewClient());
-        webView.setWebChromeClient(new WebChromeClient());
+        webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                // Injecter token/session dans localStorage côté page
+                String token = readTokenFromPrefs();
+                String sessionJson = readSessionFromPrefs();
+                if (token != null) {
+                    String js = "try{localStorage.setItem('hm-token','" + escapeJs(token) + "');localStorage.setItem('HM_TOKEN','" + escapeJs(token) + "');}catch(e){}";
+                    view.evaluateJavascript(js, null);
+                }
+                if (sessionJson != null) {
+                    String jsSess = "try{localStorage.setItem('hm-session','" + escapeJs(sessionJson) + "');}catch(e){}";
+                    view.evaluateJavascript(jsSess, null);
+                }
+                // Option: ajouter un wrapper fetch pour attacher Authorization si présent
+                if (token != null) {
+                    String fetchWrap = "(function(){try{if(window.__hmFetchWrapped) return; window.__hmFetchWrapped=true; const _f=window.fetch; window.fetch=function(i,init){init=init||{}; init.headers=init.headers||{}; try{if(!init.headers['Authorization']){init.headers['Authorization']='Bearer " + escapeJs(token) + "';}}catch(e){}; init.credentials = init.credentials || 'include'; return _f(i,init);};}catch(e){}})();";
+                    view.evaluateJavascript(fetchWrap, null);
+                }
+            }
+        });
+        // Debug WebView (devtools)
+        try { WebView.setWebContentsDebuggingEnabled(true); } catch (Throwable ignored) {}
+        webView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onConsoleMessage(ConsoleMessage consoleMessage) {
+                Log.d(TAG, "[WV] " + consoleMessage.message() + " @" + consoleMessage.sourceId() + ":" + consoleMessage.lineNumber());
+                return super.onConsoleMessage(consoleMessage);
+            }
+        });
+
+        // Autoriser cookies tiers et déposer le cookie d'API si token présent
+        try {
+            CookieManager cm = CookieManager.getInstance();
+            cm.setAcceptCookie(true);
+            CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
+            String token = readTokenFromPrefs();
+            if (token != null && token.length() > 0) {
+                cm.setCookie(API_BASE, "hm-token=" + token + "; Path=/; SameSite=None; Secure");
+                cm.setCookie(API_BASE, "token=" + token + "; Path=/; SameSite=None; Secure");
+                cm.flush();
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "Cookie setup failed: " + t.getMessage());
+        }
 
         // Charger le jeu de drag local depuis assets
         webView.loadUrl("file:///android_asset/public/drag/index.html");
         
+        // Ajouter un overlay si l'auth est absente/incorrecte
+        ensureAuthOrPrompt(rootLayout);
+
         // Précharger un interstitiel pour la première course
         loadInterstitialAd();
     }
@@ -210,6 +266,104 @@ public class DragActivity extends AppCompatActivity {
         } catch (Exception e) {
             Log.e(TAG, "Erreur sync auth intent: " + e.getMessage());
         }
+    }
+
+    private String readTokenFromPrefs() {
+        try {
+            SharedPreferences prefs = getSharedPreferences("CapacitorStorage", MODE_PRIVATE);
+            String token = prefs.getString("HM_TOKEN", null);
+            if (token == null) token = prefs.getString("hm-token", null);
+            if (token == null) token = prefs.getString("auth_token", null);
+            return token;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String readSessionFromPrefs() {
+        try {
+            SharedPreferences prefs = getSharedPreferences("CapacitorStorage", MODE_PRIVATE);
+            return prefs.getString("hm-session", null);
+        } catch (Exception e) { return null; }
+    }
+
+    private void ensureAuthOrPrompt(FrameLayout rootLayout) {
+        String token = readTokenFromPrefs();
+        if (token != null && token.length() > 10) {
+            // Auth ok → rien à afficher
+            return;
+        }
+        // Construire un overlay simple avec message + actions
+        LinearLayout overlay = new LinearLayout(this);
+        overlay.setOrientation(LinearLayout.VERTICAL);
+        overlay.setBackgroundColor(0xCC000000);
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+        );
+        overlay.setLayoutParams(lp);
+        overlay.setGravity(Gravity.CENTER);
+
+        TextView title = new TextView(this);
+        title.setText("Connexion requise");
+        title.setTextColor(0xFFFFFFFF);
+        title.setTextSize(22);
+        title.setGravity(Gravity.CENTER);
+
+        TextView msg = new TextView(this);
+        msg.setText("Aucun utilisateur connecté ou session expirée.\nVous pouvez retourner à l'accueil ou vous reconnecter.");
+        msg.setTextColor(0xFFDDDDDD);
+        msg.setTextSize(14);
+        msg.setGravity(Gravity.CENTER);
+
+        LinearLayout buttons = new LinearLayout(this);
+        buttons.setOrientation(LinearLayout.HORIZONTAL);
+        buttons.setGravity(Gravity.CENTER);
+
+        Button backBtn = new Button(this);
+        backBtn.setText("Retour accueil");
+        backBtn.setOnClickListener(v -> finish());
+
+        Button loginBtn = new Button(this);
+        loginBtn.setText("Se reconnecter");
+        loginBtn.setOnClickListener(v -> {
+            try {
+                // Ouvrir l'activité principale (web) pour login
+                Intent i = new Intent(DragActivity.this, MainActivity.class);
+                startActivity(i);
+                finish();
+            } catch (Exception e) {
+                finish();
+            }
+        });
+
+        int pad = (int) (getResources().getDisplayMetrics().density * 16);
+        LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+        container.setPadding(pad, pad, pad, pad);
+        container.setGravity(Gravity.CENTER);
+
+        container.addView(title);
+        View spacer = new View(this); spacer.setMinimumHeight(pad/2); container.addView(spacer);
+        container.addView(msg);
+        View spacer2 = new View(this); spacer2.setMinimumHeight(pad); container.addView(spacer2);
+        buttons.addView(backBtn);
+        View spacer3 = new View(this); spacer3.setMinimumWidth(pad); buttons.addView(spacer3);
+        buttons.addView(loginBtn);
+        container.addView(buttons);
+
+        overlay.addView(container);
+        rootLayout.addView(overlay);
+        authOverlay = overlay;
+    }
+
+    private static String escapeJs(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("'", "\\'")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r");
     }
 
     /**
