@@ -1,37 +1,44 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
-const mobileWebUrl = (process.env.MOBILE_WEB_URL ?? '').trim();
+const DEFAULT_MOBILE_WEB_URL = 'https://client-jeux-millionnaire.vercel.app';
+const configuredWebUrl = (process.env.MOBILE_WEB_URL ?? '').trim();
+const mobileWebUrl = configuredWebUrl || DEFAULT_MOBILE_WEB_URL;
+
+let mobileHost = 'client-jeux-millionnaire.vercel.app';
+try {
+  mobileHost = new URL(mobileWebUrl).hostname || mobileHost;
+} catch {
+  // Conserver l'hôte de production si une variable invalide est fournie.
+}
 
 const config: CapacitorConfig = {
   appId: 'com.heritier.millionnaire',
   appName: 'Héritier Millionnaire',
   webDir: 'dist',
-  server: mobileWebUrl ? {
+
+  // Le client Vercel est la source de vérité en production. Cela évite qu'un AAB
+  // embarque silencieusement une vieille copie de `dist` lorsque MOBILE_WEB_URL
+  // n'a pas été exportée avant `cap sync`.
+  server: {
     url: mobileWebUrl,
-    cleartext: true,
+    cleartext: mobileWebUrl.startsWith('http://'),
     androidScheme: 'https',
-    allowNavigation: [
-      'client-jeux-millionnaire.vercel.app'
-    ]
-  } : {
-    // Charger depuis dist par défaut (pas de serveur externe)
-    cleartext: true,
-    androidScheme: 'https',
-    allowNavigation: [
-      // Autoriser la navigation vers le site client pour rester dans la WebView
-      'client-jeux-millionnaire.vercel.app'
-    ]
+    allowNavigation: Array.from(new Set([
+      mobileHost,
+      'client-jeux-millionnaire.vercel.app',
+    ])),
   },
+
   android: {
-    allowMixedContent: true
+    allowMixedContent: false,
   },
   plugins: {
     StatusBar: {
       style: 'light',
       overlays: true,
-      backgroundColor: '#00000000'
-    }
-  }
+      backgroundColor: '#00000000',
+    },
+  },
 };
 
 export default config;
