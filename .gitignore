@@ -33,3 +33,5 @@ export/
 # Ne versionner aucune configuration locale Gradle contenant des secrets
 gradle.properties
 android/gradle.properties
+
+.test-classes/

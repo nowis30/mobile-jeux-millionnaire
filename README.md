@@ -130,3 +130,11 @@ Dans Android Studio :
 - Ajoutez `capacitor://localhost` à la variable `CLIENT_ORIGIN` côté API (Render) pour autoriser l'origine mobile.
 - Si vous utilisez des cookies (invités, CSRF), vérifiez que le serveur définit `SameSite=None; Secure` et que les requêtes fetch incluent `credentials: 'include'`.
 - Alternative avancée: configurer un proxy côté Vercel pour appeler l’API via le même domaine que le client afin d’éviter les cookies tiers.
+
+## Maintenance de sécurité — octobre 2026
+
+Les WebViews natives injectent la session uniquement dans la page locale Drag attendue ou sur l’origine HTTPS exacte du client. Le wrapper fetch n’ajoute plus le jeton aux autres destinations, préserve les en-têtes `Request`/`Headers`, et le débogage WebView suit le mode debuggable de l’application.
+
+Le plugin AdMob reçoit maintenant un identifiant d’intention et d’utilisateur émis par le serveur, les transmet dans les options SSV et signale sa compatibilité au client. Une fermeture avant récompense rejette la promesse afin de libérer l’interface. Ces changements nécessitent la configuration SSV et les PR coordonnées du serveur et du client; aucun APK n’est publié par cette correction.
+
+`npm ci --ignore-scripts` fonctionne sans dossier parent. `npm test` exécute les tests Java de navigation et les assertions JavaScript sur le vrai script natif. La CI ajoute également une compilation Android debug. La signature et la publication release restent séparées.
