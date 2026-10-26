@@ -8,13 +8,13 @@
     "cap": "cap",
     "android": "cap open android",
     "sync": "cap sync",
-    "copy": "cap copy"
+    "copy": "cap copy",
+    "test": "sh scripts/test-web-auth.sh"
   },
   "dependencies": {
     "@capacitor/android": "^6.1.3",
     "@capacitor/browser": "^6.0.5",
-    "@capacitor/core": "^6.1.3",
-    "heritier-millionnaire": "file:.."
+    "@capacitor/core": "^6.1.3"
   },
   "devDependencies": {
     "@capacitor/cli": "^6.1.3",

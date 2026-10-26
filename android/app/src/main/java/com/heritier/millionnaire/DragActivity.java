@@ -16,6 +16,7 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.WebResourceRequest;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -173,7 +174,8 @@ public class DragActivity extends AppCompatActivity {
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setAllowFileAccess(true);
-        settings.setAllowContentAccess(true);
+        settings.setAllowContentAccess(false);
+        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(true);
         settings.setBuiltInZoomControls(false);
@@ -186,8 +188,19 @@ public class DragActivity extends AppCompatActivity {
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                return !WebAuthPolicy.isDragUrl(request.getUrl().toString());
+            }
+
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                return !WebAuthPolicy.isDragUrl(url);
+            }
+
+            @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
+                if (!WebAuthPolicy.isDragUrl(url) || !WebAuthPolicy.isDragUrl(view.getUrl())) return;
                 // Injecter token/session dans localStorage côté page
                 String token = readTokenFromPrefs();
                 String sessionJson = readSessionFromPrefs();
@@ -201,13 +214,13 @@ public class DragActivity extends AppCompatActivity {
                 }
                 // Option: ajouter un wrapper fetch pour attacher Authorization si présent
                 if (token != null) {
-                    String fetchWrap = "(function(){try{if(window.__hmFetchWrapped) return; window.__hmFetchWrapped=true; const _f=window.fetch; window.fetch=function(i,init){init=init||{}; init.headers=init.headers||{}; try{if(!init.headers['Authorization']){init.headers['Authorization']='Bearer " + escapeJs(token) + "';}}catch(e){}; init.credentials = init.credentials || 'include'; return _f(i,init);};}catch(e){}})();";
+                    String fetchWrap = WebAuthPolicy.fetchScript(escapeJs(token), API_BASE);
                     view.evaluateJavascript(fetchWrap, null);
                 }
             }
         });
         // Debug WebView (devtools)
-        try { WebView.setWebContentsDebuggingEnabled(true); } catch (Throwable ignored) {}
+        try { WebView.setWebContentsDebuggingEnabled((getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0); } catch (Throwable ignored) {}
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
             public boolean onConsoleMessage(ConsoleMessage consoleMessage) {
@@ -232,7 +245,7 @@ public class DragActivity extends AppCompatActivity {
         }
 
         // Charger le jeu de drag local depuis assets
-        webView.loadUrl("file:///android_asset/public/drag/index.html");
+        webView.loadUrl(WebAuthPolicy.DRAG_URL);
         
         // Ajouter un overlay si l'auth est absente/incorrecte
         ensureAuthOrPrompt(rootLayout);

@@ -16,6 +16,7 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.WebResourceRequest;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -70,7 +71,7 @@ public class ImmobilierActivity extends AppCompatActivity {
                 else target = CLIENT_BASE + "/" + startUrl;
             }
         }
-        webView.loadUrl(target);
+        webView.loadUrl(WebAuthPolicy.isClientUrl(target) ? target : DEFAULT_URL);
 
         ensureAuthOrPrompt(root);
     }
@@ -106,7 +107,9 @@ public class ImmobilierActivity extends AppCompatActivity {
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
         s.setAllowFileAccess(true);
-        s.setAllowContentAccess(true);
+        s.setAllowContentAccess(false);
+        s.setAllowFileAccess(false);
+        s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         s.setLoadWithOverviewMode(true);
         s.setUseWideViewPort(true);
         s.setBuiltInZoomControls(false);
@@ -116,13 +119,24 @@ public class ImmobilierActivity extends AppCompatActivity {
 
         wv.setWebViewClient(new WebViewClient() {
             @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                return !WebAuthPolicy.isClientUrl(request.getUrl().toString());
+            }
+
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                return !WebAuthPolicy.isClientUrl(url);
+            }
+
+            @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
+                if (!WebAuthPolicy.isClientUrl(url) || !WebAuthPolicy.isClientUrl(view.getUrl())) return;
                 String tok = readToken();
                 if (!TextUtils.isEmpty(tok)) {
                     String js = "try{localStorage.setItem('hm-token','" + escapeJs(tok) + "');localStorage.setItem('HM_TOKEN','" + escapeJs(tok) + "');}catch(e){}";
                     view.evaluateJavascript(js, null);
-                    String wrap = "(function(){try{if(window.__hmFetchWrapped)return;window.__hmFetchWrapped=true;const _f=window.fetch;window.fetch=function(i,init){init=init||{};init.headers=init.headers||{};try{if(!init.headers['Authorization']){init.headers['Authorization']='Bearer " + escapeJs(tok) + "';}}catch(e){};init.credentials=init.credentials||'include';return _f(i,init);};}catch(e){}})();";
+                    String wrap = WebAuthPolicy.fetchScript(escapeJs(tok), API_BASE);
                     view.evaluateJavascript(wrap, null);
                 }
                 String sess = readSession();
@@ -209,7 +223,7 @@ public class ImmobilierActivity extends AppCompatActivity {
     }
 
     private void setupDebugging() {
-        try { WebView.setWebContentsDebuggingEnabled(true); } catch (Throwable ignored) {}
+        try { WebView.setWebContentsDebuggingEnabled((getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0); } catch (Throwable ignored) {}
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
             public boolean onConsoleMessage(ConsoleMessage consoleMessage) {

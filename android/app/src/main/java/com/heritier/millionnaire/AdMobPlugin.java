@@ -18,6 +18,7 @@ import com.google.android.gms.ads.MobileAds;
 import com.google.android.gms.ads.interstitial.InterstitialAd;
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback;
 import com.google.android.gms.ads.rewarded.RewardedAd;
+import com.google.android.gms.ads.rewarded.ServerSideVerificationOptions;
 import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback;
 import com.google.android.ump.ConsentInformation;
 import com.google.android.ump.ConsentRequestParameters;
@@ -275,7 +276,22 @@ public class AdMobPlugin extends Plugin {
     }
     
     @PluginMethod
+    public void getRewardVerificationSupport(PluginCall call) {
+        call.resolve(new com.getcapacitor.JSObject().put("supported", true));
+    }
+
+    @PluginMethod
     public void showRewardedAd(PluginCall call) {
+        final String intentId = call.getString("intentId");
+        final String userId = call.getString("userId");
+        if (intentId == null || userId == null ||
+                !intentId.matches("[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}") ||
+                !userId.matches("[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}")) {
+            call.reject("Verified reward intent required");
+            return;
+        }
+        final boolean[] earned = { false };
+
         Activity activity = getActivity();
         if (activity == null) {
             call.reject("Activity not available");
@@ -284,12 +300,15 @@ public class AdMobPlugin extends Plugin {
         
         activity.runOnUiThread(() -> {
             if (rewardedAd != null) {
+                rewardedAd.setServerSideVerificationOptions(new ServerSideVerificationOptions.Builder()
+                        .setCustomData(intentId).setUserId(userId).build());
                 rewardedAd.setFullScreenContentCallback(new FullScreenContentCallback() {
                     @Override
                     public void onAdDismissedFullScreenContent() {
                         rewardedAd = null;
                         Log.d(TAG, "Rewarded ad dismissed");
                         notifyListeners("rewardedAdDismissed", null);
+                        if (!earned[0]) call.reject("Ad dismissed before reward was earned");
                     }
                     
                     @Override
@@ -307,7 +326,8 @@ public class AdMobPlugin extends Plugin {
                 });
                 
                 rewardedAd.show(activity, rewardItem -> {
-                    // L'utilisateur a gagné la récompense
+                    earned[0] = true;
+                    // Le serveur vérifiera le callback AdMob avant tout crédit.
                     int amount = rewardItem.getAmount();
                     String type = rewardItem.getType();
                     Log.d(TAG, "User earned reward: " + amount + " " + type);
